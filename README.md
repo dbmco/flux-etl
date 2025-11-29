@@ -1,4 +1,4 @@
-# StafferFi Frontend
+# StafferFi
 
 Next.js 15 + TypeScript + TailwindCSS + ESLint + Prettier + Storybook + Vitest + Cypress, deployable on Vercel.
 
