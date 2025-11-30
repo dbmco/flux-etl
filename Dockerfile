@@ -15,7 +15,7 @@ RUN apk add --no-cache libc6-compat python3 py3-pip
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN corepack enable && corepack prepare pnpm@latest --activate && pnpm install --frozen-lockfile
-RUN pnpm build
+RUN pnpm build:web && pnpm build:api
 # Ensure public directory exists in builder stage
 RUN mkdir -p apps/web/public
 
@@ -35,8 +35,16 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends nodejs npm ca-certificates && rm -rf /var/lib/apt/lists/* \
   && npm install -g corepack && corepack enable
 
-# Copy Node build artifacts
-COPY --from=builder /app ./
+# Copy standalone Next.js build
+COPY --from=builder /app/apps/web/.next/standalone ./
+# Copy Next.js static assets
+COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=builder /app/apps/web/public ./apps/web/public
+
+# Copy API build
+COPY --from=builder /app/apps/api/dist ./apps/api/dist
+COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
+COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
 
 # Copy Python venv and lake app source
 COPY --from=lake-deps /opt/venv /opt/venv
