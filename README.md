@@ -26,3 +26,20 @@ StafferFi is a multi-tier polyglot ETL service collection represented by the fol
 brew install --cask docker
 ./demo.sh
 ```
+
+## Gitpod (recommended for quick, isolated runs)
+
+If you want an environment that runs the ETL and services without changing your host Python setup, open this repository in Gitpod. The workspace will:
+
+- install JS dependencies with `pnpm`
+- create a Python virtualenv for `apps/lake` and install Python deps
+- start `postgres`, run the containerized `etl` job, then bring up `api` and `web` using the repository `docker-compose.yml`
+
+To run locally using the same helper script (requires Docker):
+
+```bash
+# from repo root
+bash .gitpod/gitpod-start.sh
+```
+
+The Gitpod configuration and helper script do not modify your existing Dockerfiles or `docker-compose.yml` — they only orchestrate them.
