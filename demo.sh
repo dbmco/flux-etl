@@ -1,6 +1,3 @@
-git clone git@github.com:eUSDSRecruiting/Michael-H-Take-Home-Assessment.git stafferfi
-cd stafferfi
-
 # Build the multi-stage Docker image
 sudo docker build -t stafferfi-all .
 
