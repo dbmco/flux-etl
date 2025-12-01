@@ -6,6 +6,6 @@
   "main": "tailwind.config.ts",
   "devDependencies": {
     "@tailwindcss/forms": "^0.5.7",
-    "tailwindcss": "^3.4.14"
+    "tailwindcss": "^3.4.18"
   }
 }
