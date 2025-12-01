@@ -2,11 +2,10 @@
 
 StafferFi is a multi-tier polyglot ETL service collection represented by the following services.
 
-:::note
-- **Web UI** – Next.js 15 (TypeScript, Tailwind, etc.) under `apps/web`
-- **API** – Express + DuckDB under `apps/api`
-- **Lake** – Python (FastAPI/Flask-style app) served by Gunicorn under `apps/lake`
-:::
+> [!NOTE]
+> - **Web UI** – Next.js 15 (TypeScript, Tailwind, etc.) under `apps/web`
+> - **API** – Express + DuckDB under `apps/api`
+> - **Lake** – Python (FastAPI/Flask-style app) served by Gunicorn under `apps/lake`
 
 ## Documentation
 
@@ -14,9 +13,8 @@ StafferFi is a multi-tier polyglot ETL service collection represented by the fol
 - [Planning](./docs/planning/README.md)
 - [ADRs](./docs/adrs/README.md)
 
-:::info
-This project uses **pnpm** workspaces in a single **Docker image** with `supervisord` running all services in prd-like environment.
-:::
+> [!IMPORTANT]
+> This project uses **pnpm** workspaces in a single **Docker image** with `supervisord` running all services in prd-like environment.
 
 ## Demo Quick Start (local docker)
 
