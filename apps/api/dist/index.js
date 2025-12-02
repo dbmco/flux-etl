@@ -1,13 +1,18 @@
-import express from 'express';
-import cors from 'cors';
-import { Pool } from 'pg';
-const app = express();
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const cors_1 = __importDefault(require("cors"));
+const pg_1 = require("pg");
+const app = (0, express_1.default)();
 const port = Number(process.env.API_PORT ?? 4000);
 // Middleware
-app.use(cors());
-app.use(express.json());
+app.use((0, cors_1.default)());
+app.use(express_1.default.json());
 // PostgreSQL connection pool
-const pool = new Pool({
+const pool = new pg_1.Pool({
     connectionString: process.env.DATABASE_URL || 'postgresql://stafferfi:stafferfi_dev@localhost:5432/ecfr_analytics',
     max: 20,
     idleTimeoutMillis: 30000,
@@ -218,6 +223,106 @@ app.get('/api/trends/titles', async (_req, res) => {
     catch (error) {
         console.error('Error fetching title trends:', error);
         res.status(500).json({ error: 'Failed to fetch title trends' });
+    }
+});
+// ============================================================================
+// REPORTS ENDPOINTS
+// ============================================================================
+app.get('/api/reports/word-count', async (req, res) => {
+    try {
+        const result = await pool.query(`
+      SELECT 
+        a.slug,
+        a.name,
+        a.short_name,
+        am.word_count_estimate,
+        am.total_corrections,
+        am.rvi,
+        a.total_cfr_references
+      FROM agencies a
+      INNER JOIN agency_metrics am ON a.slug = am.agency_slug
+      WHERE am.word_count_estimate > 0
+      ORDER BY am.word_count_estimate DESC
+    `);
+        res.json(result.rows);
+    }
+    catch (error) {
+        console.error('Error fetching word count report:', error);
+        res.status(500).json({ error: 'Failed to fetch word count report' });
+    }
+});
+app.get('/api/reports/scorecard', async (req, res) => {
+    try {
+        // Calculate scorecard with multiple ranking dimensions
+        const result = await pool.query(`
+      WITH ranked_agencies AS (
+        SELECT 
+          a.slug,
+          a.name,
+          a.short_name,
+          am.total_corrections,
+          am.rvi,
+          am.word_count_estimate,
+          am.avg_correction_lag_days,
+          a.total_cfr_references,
+          -- Rank by corrections (more = higher rank)
+          RANK() OVER (ORDER BY am.total_corrections DESC) as corrections_rank,
+          -- Rank by RVI (higher = more volatile)
+          RANK() OVER (ORDER BY am.rvi DESC) as rvi_rank,
+          -- Rank by word count (more = larger regulatory footprint)
+          RANK() OVER (ORDER BY am.word_count_estimate DESC) as size_rank,
+          -- Rank by responsiveness (lower lag = better)
+          RANK() OVER (ORDER BY am.avg_correction_lag_days ASC) as responsiveness_rank,
+          -- Count total agencies for percentile calculation
+          COUNT(*) OVER () as total_agencies
+        FROM agencies a
+        INNER JOIN agency_metrics am ON a.slug = am.agency_slug
+        WHERE am.total_corrections > 0
+      ),
+      scored_agencies AS (
+        SELECT 
+          *,
+          -- Calculate composite score (lower is better)
+          -- Weight: corrections 30%, RVI 25%, size 20%, responsiveness 25%
+          (
+            (corrections_rank::float / total_agencies * 0.30) +
+            (rvi_rank::float / total_agencies * 0.25) +
+            (size_rank::float / total_agencies * 0.20) +
+            (responsiveness_rank::float / total_agencies * 0.25)
+          ) * 100 as composite_score,
+          -- Calculate grade based on percentiles
+          CASE 
+            WHEN corrections_rank::float / total_agencies <= 0.20 THEN 'A'
+            WHEN corrections_rank::float / total_agencies <= 0.40 THEN 'B'
+            WHEN corrections_rank::float / total_agencies <= 0.60 THEN 'C'
+            WHEN corrections_rank::float / total_agencies <= 0.80 THEN 'D'
+            ELSE 'F'
+          END as activity_grade
+        FROM ranked_agencies
+      )
+      SELECT 
+        slug,
+        name,
+        short_name,
+        total_corrections,
+        rvi,
+        word_count_estimate,
+        avg_correction_lag_days,
+        total_cfr_references,
+        corrections_rank,
+        rvi_rank,
+        size_rank,
+        responsiveness_rank,
+        ROUND(composite_score::numeric, 2) as composite_score,
+        activity_grade
+      FROM scored_agencies
+      ORDER BY composite_score DESC
+    `);
+        res.json(result.rows);
+    }
+    catch (error) {
+        console.error('Error fetching scorecard:', error);
+        res.status(500).json({ error: 'Failed to fetch scorecard' });
     }
 });
 // ============================================================================

@@ -185,7 +185,22 @@ class DuckDBToPostgresETL:
         """Transfer agency metrics from DuckDB to PostgreSQL."""
         print("\n📤 Transferring agency metrics...")
         
-        # Fetch from DuckDB
+        # Calculate word counts using tiered estimation
+        word_counts_query = self.duck_conn.execute("""
+            SELECT 
+                agency_slug,
+                SUM(CASE 
+                    WHEN part IS NOT NULL THEN 2000
+                    WHEN chapter IS NOT NULL THEN 10000
+                    ELSE 50000
+                END) as word_count
+            FROM cfr_references
+            GROUP BY agency_slug
+        """).fetchall()
+        
+        word_counts_dict = {slug: count for slug, count in word_counts_query}
+        
+        # Fetch metrics from DuckDB
         metrics = self.duck_conn.execute("""
             SELECT 
                 slug,
@@ -194,11 +209,17 @@ class DuckDBToPostgresETL:
                 first_correction_year,
                 last_correction_year,
                 avg_correction_lag_days,
-                rvi,
-                cfr_reference_count * 500 as word_count_estimate
+                rvi
             FROM agency_metrics
             ORDER BY slug
         """).fetchall()
+        
+        # Add word counts to metrics
+        metrics_with_words = []
+        for metric in metrics:
+            slug = metric[0]
+            word_count = word_counts_dict.get(slug, 0)
+            metrics_with_words.append(metric + (word_count,))
         
         cursor = self.pg_conn.cursor()
         
@@ -211,12 +232,12 @@ class DuckDBToPostgresETL:
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """
         
-        execute_batch(cursor, insert_sql, metrics, page_size=100)
+        execute_batch(cursor, insert_sql, metrics_with_words, page_size=100)
         self.pg_conn.commit()
         cursor.close()
         
-        print(f"  ✅ Transferred {len(metrics)} agency metrics")
-        return len(metrics)
+        print(f"  ✅ Transferred {len(metrics_with_words)} agency metrics")
+        return len(metrics_with_words)
     
     def transfer_time_series(self):
         """Transfer time series data from DuckDB to PostgreSQL."""

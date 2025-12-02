@@ -1,0 +1,24 @@
+image: gitpod/workspace-full
+
+tasks:
+  - init: |
+      echo "Enable pnpm"
+      corepack enable
+      corepack prepare pnpm@10.24.0 --activate
+      pnpm install
+
+      echo "Ensure python venv support and install python deps"
+      sudo apt-get update -y
+      sudo apt-get install -y python3-venv python3-pip
+
+      python3 -m venv apps/lake/.venv
+      apps/lake/.venv/bin/python -m pip install --upgrade pip setuptools wheel
+      apps/lake/.venv/bin/pip install -r apps/lake/requirements.txt
+
+  - command: bash .gitpod/gitpod-start.sh
+
+ports:
+  - port: 3000
+    onOpen: open-preview
+  - port: 4000
+    onOpen: open-preview
