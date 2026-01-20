@@ -1,4 +1,10 @@
-# StafferFi
+# Flux ETL
+
+Flux ETL is a full-stack pipeline application that inputs unstructured data into structured schemas for data analysis. Flux generates reports with graphical charts and statistical models baked in.
+
+• “API-first ETL with enforceable schemas and built-in analytics.”
+• “Deterministic data pipelines from local Docker to full production.”
+• “Schema contracts, automated flows, and statistical insight in one engine.”
 
 StafferFi consists of three logically seperate layers.
 
