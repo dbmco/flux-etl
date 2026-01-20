@@ -2,11 +2,33 @@
 
 Flux ETL is a full-stack pipeline application that inputs unstructured data into structured schemas for data analysis. Flux generates reports with graphical charts and statistical models baked in.
 
+Flux ETL produces **Data Plasma** with the API-first ETL pipeline with a schema contract layer, built-in charting, and statistical analysis. It provides reproducible, containerized pipelines that run locally via Docker and scale to production builds.
+
 • “API-first ETL with enforceable schemas and built-in analytics.”
 • “Deterministic data pipelines from local Docker to full production.”
 • “Schema contracts, automated flows, and statistical insight in one engine.”
 
-StafferFi consists of three logically seperate layers.
+## Features
+- API-first ETL design with strict schema contracts  
+- Interactive UI with charting and statistical analysis  
+- Containerized local development (Docker)  
+- Production-ready builds with versioned releases  
+- Deterministic, reproducible pipelines  
+
+## Getting Started
+
+### Prerequisites
+- Docker (v20+)  
+- Docker Compose (optional for multi-container setups)  
+- Node.js or Python environment (if contributing to the UI or scripts)
+
+### Local Setup
+1. Clone the repository:  
+   ```bash
+   git clone https://github.com/your-org/data-plasma.git
+   cd data-plasma
+
+Currently, Flux ETL consists of three logically seperate layers.
 
 ## Data Connector
 #### ETL Controller
