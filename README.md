@@ -3,9 +3,9 @@ Flux ETL is a Data Quality Management platform designed to ingest exploratory da
 
 By leveraging an API-first architecture combined with schema contracts, Flux ETL creates idempotent pipelines that are production-ready. These pipelines enforce consistency, enable automated orchestration, and maintain strict adherence to contract definitions from development to full-scale production.
 
-• “API-first ETL with enforceable schema contracts and integrated data quality analytics.”
-• “Deterministic, production-ready pipelines with end-to-end contract enforcement.”
-• “Schema contracts, automated flows, and embedded statistical validation in a single engine.”
+- “API-first ETL with enforceable schema contracts and integrated data quality analytics.”
+- “Deterministic, production-ready pipelines with end-to-end contract enforcement.”
+- “Schema contracts, automated flows, and embedded statistical validation in a single engine.”
 
 ## Features
 - API-first ETL design with strict schema contracts  
