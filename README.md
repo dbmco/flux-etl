@@ -2,7 +2,7 @@
 
 Flux ETL is a Data Quality Management application that accepts exploratory data and creates structured schemas for data analysis. Additionally, Flux generates reports with graphical charts and statistical models baked in.
 
-Flux ETL produces **Data Plasma** with the API-first ETL pipeline with a schema contract layer, built-in charting, and statistical analysis. It provides reproducible, containerized pipelines that run locally via Docker and scale to production builds.
+Flux ETL utilizes the idea of **Data Plasma** with its API-first pipeline and schema contract layer; This provides an idempotent exploratory pipeline environment that is production scale ready.
 
 • “API-first ETL with enforceable schemas and built-in analytics.”
 • “Deterministic data pipelines from local Docker to full production.”
