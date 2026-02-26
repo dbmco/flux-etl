@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://flux.usds.gov/schemas/v1/flux-payload.json",
+  "title": "Flux ETL Payload Schema v1",
+  "description": "Standard payload structure for all Flux ETL requests",
+  "type": "object",
+  "required": ["agency", "content_type", "use_case"],
+  "properties": {
+    "agency": {
+      "type": "string",
+      "description": "Federal agency slug (lowercase alphanumeric with hyphens)",
+      "pattern": "^[a-z0-9-]+$",
+      "minLength": 3,
+      "maxLength": 64,
+      "examples": [
+        "national-archives",
+        "nasa",
+        "library-of-congress",
+        "national-park-service"
+      ]
+    },
+    "content_type": {
+      "type": "string",
+      "description": "Type of content being processed",
+      "enum": ["images", "documents", "text", "mixed"],
+      "examples": ["images", "documents", "text", "mixed"]
+    },
+    "use_case": {
+      "type": "string",
+      "description": "Downstream use case for the data",
+      "enum": [
+        "vr",
+        "ai-training",
+        "research",
+        "education",
+        "preservation",
+        "accessibility",
+        "public-engagement",
+        "policy",
+        "economic-development",
+        "national-security",
+        "environmental",
+        "cultural",
+        "historical",
+        "scientific"
+      ]
+    },
+    "stage": {
+      "type": "string",
+      "description": "Pipeline stage(s) to execute",
+      "enum": ["ingest", "transform", "export", "full"],
+      "default": "full"
+    },
+    "source": {
+      "type": "string",
+      "description": "Optional: S3 or GCS path to raw data",
+      "pattern": "^(s3://|gs://)[a-zA-Z0-9._/-]+$",
+      "examples": ["s3://flux-ingest/national-archives/2026-02/batch-001"]
+    },
+    "checkpoint_id": {
+      "type": "string",
+      "description": "Optional: Resume from previous checkpoint",
+      "format": "uuid"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Optional custom metadata",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

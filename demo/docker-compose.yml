@@ -6,17 +6,17 @@ services:
       - "5432:5432"
     environment:
       - POSTGRES_DB=ecfr_analytics
-      - POSTGRES_USER=stafferfi
-      - POSTGRES_PASSWORD=stafferfi_dev
+      - POSTGRES_USER=flux
+      - POSTGRES_PASSWORD=flux_dev
     tmpfs:
       - /var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U stafferfi -d ecfr_analytics"]
+      test: ["CMD-SHELL", "pg_isready -U flux -d ecfr_analytics"]
       interval: 5s
       timeout: 5s
       retries: 20   # make sure Postgres has enough time
     networks:
-      - stafferfi
+      - flux
 
   # Data loader - runs ETL once then exits
   etl:
@@ -25,13 +25,13 @@ services:
       dockerfile: Dockerfile
       target: runner
     environment:
-      - DATABASE_URL=postgresql://stafferfi:stafferfi_dev@postgres:5432/ecfr_analytics
+      - DATABASE_URL=postgresql://flux:flux_dev@postgres:5432/ecfr_analytics
     depends_on:
       postgres:
         condition: service_healthy
     command: /bin/sh -c "/opt/venv/bin/python apps/lake/ingestion.py && /opt/venv/bin/python apps/lake/etl_to_postgres.py"
     networks:
-      - stafferfi
+      - flux
     restart: "no"
 
   # Node API server
@@ -45,7 +45,7 @@ services:
     environment:
       - NODE_ENV=production
       - API_PORT=4000
-      - DATABASE_URL=postgresql://stafferfi:stafferfi_dev@postgres:5432/ecfr_analytics
+      - DATABASE_URL=postgresql://flux:flux_dev@postgres:5432/ecfr_analytics
     depends_on:
       postgres:
         condition: service_healthy
@@ -53,7 +53,7 @@ services:
         condition: service_completed_successfully
     command: node apps/api/dist/index.js
     networks:
-      - stafferfi
+      - flux
     restart: unless-stopped
 
   # Next.js web frontend
@@ -77,9 +77,9 @@ services:
       - api
     command: node apps/web/server.js
     networks:
-      - stafferfi
+      - flux
     restart: unless-stopped
 
 networks:
-  stafferfi:
+  flux:
     driver: bridge

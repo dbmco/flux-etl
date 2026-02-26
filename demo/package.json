@@ -1,5 +1,5 @@
 {
-  "name": "stafferfi-monorepo",
+  "name": "flux-monorepo",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -8,10 +8,10 @@
     "packages/*"
   ],
   "scripts": {
-    "dev:web": "pnpm --filter @stafferfi/web dev",
-    "dev:api": "pnpm --filter @stafferfi/api dev",
-    "build:web": "pnpm --filter @stafferfi/web build",
-    "build:api": "pnpm --filter @stafferfi/api build",
+    "dev:web": "pnpm --filter @flux/web dev",
+    "dev:api": "pnpm --filter @flux/api dev",
+    "build:web": "pnpm --filter @flux/web build",
+    "build:api": "pnpm --filter @flux/api build",
     "dev": "pnpm dev:web",
     "build": "pnpm build:web"
   },

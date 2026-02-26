@@ -1,0 +1,519 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: flux-prod
+  labels:
+    name: flux-prod
+
+---
+# PostgreSQL StatefulSet for persistent data
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  namespace: flux-prod
+  name: flux-postgres
+spec:
+  serviceName: flux-postgres
+  replicas: 3
+  selector:
+    matchLabels:
+      app: flux-postgres
+  template:
+    metadata:
+      labels:
+        app: flux-postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:16-alpine
+        ports:
+        - containerPort: 5432
+          name: postgres
+        env:
+        - name: POSTGRES_DB
+          value: flux_production
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secrets
+              key: username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secrets
+              key: password
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+          subPath: postgres
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - exec pg_isready -U $POSTGRES_USER -d $POSTGRES_DB
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - exec pg_isready -U $POSTGRES_USER -d $POSTGRES_DB
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 5
+      terminationGracePeriodSeconds: 30
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: fast-ssd
+      resources:
+        requests:
+          storage: 50Gi
+
+---
+# PostgreSQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: flux-prod
+  name: flux-postgres
+spec:
+  clusterIP: None
+  ports:
+  - port: 5432
+    targetPort: 5432
+    name: postgres
+  selector:
+    app: flux-postgres
+
+---
+# Secrets: PostgreSQL credentials (MUST be created separately in production)
+apiVersion: v1
+kind: Secret
+metadata:
+  namespace: flux-prod
+  name: postgres-secrets
+type: Opaque
+stringData:
+  username: flux_app
+  password: CHANGE_ME_IN_PRODUCTION
+
+---
+# Secrets: JWT/OIDC configuration
+apiVersion: v1
+kind: Secret
+metadata:
+  namespace: flux-prod
+  name: jwt-secrets
+type: Opaque
+stringData:
+  jwt_secret: CHANGE_ME_IN_PRODUCTION
+  oidc_client_id: CHANGE_ME_IN_PRODUCTION
+  oidc_client_secret: CHANGE_ME_IN_PRODUCTION
+
+---
+# ConfigMap: Application configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: flux-prod
+  name: flux-config
+data:
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "INFO"
+  DATABASE_POOL_SIZE: "20"
+  CHECKPOINT_RETENTION_DAYS: "30"
+  ENABLE_AUDIT_LOGGING: "true"
+  ENABLE_METRICS: "true"
+  ENABLE_TRACING: "true"
+  TRACE_SAMPLE_RATE: "0.1"
+
+---
+# Deployment: Flux API Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: flux-prod
+  name: flux-api
+  labels:
+    app: flux-api
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: flux-api
+  template:
+    metadata:
+      labels:
+        app: flux-api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: flux-api
+      containers:
+      - name: api
+        image: flux/api:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        - containerPort: 9090
+          name: metrics
+          protocol: TCP
+        env:
+        - name: DATABASE_URL
+          value: "postgresql://flux_app:$(DB_PASSWORD)@flux-postgres:5432/flux_production"
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secrets
+              key: password
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: jwt-secrets
+              key: jwt_secret
+        - name: OIDC_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: jwt-secrets
+              key: oidc_client_id
+        envFrom:
+        - configMapRef:
+            name: flux-config
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: http
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 2
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+
+---
+# Deployment: Flux Lake (ETL Worker)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: flux-prod
+  name: flux-lake
+  labels:
+    app: flux-lake
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: flux-lake
+  template:
+    metadata:
+      labels:
+        app: flux-lake
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: flux-lake
+      containers:
+      - name: lake
+        image: flux/lake:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 50051
+          name: grpc
+          protocol: TCP
+        - containerPort: 8080
+          name: metrics
+          protocol: TCP
+        env:
+        - name: DATABASE_URL
+          value: "postgresql://flux_app:$(DB_PASSWORD)@flux-postgres:5432/flux_production"
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secrets
+              key: password
+        envFrom:
+        - configMapRef:
+            name: flux-config
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - "grpcurl -plaintext localhost:50051 grpc.health.v1.Health/Check"
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - "grpcurl -plaintext localhost:50051 grpc.health.v1.Health/Check"
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 2
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+
+---
+# Service: API
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: flux-prod
+  name: flux-api
+  labels:
+    app: flux-api
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: http
+    name: http
+  - port: 9090
+    targetPort: metrics
+    name: metrics
+  selector:
+    app: flux-api
+
+---
+# Service: Lake (gRPC)
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: flux-prod
+  name: flux-lake
+  labels:
+    app: flux-lake
+spec:
+  type: ClusterIP
+  ports:
+  - port: 50051
+    targetPort: grpc
+    name: grpc
+    appProtocol: grpc
+  selector:
+    app: flux-lake
+
+---
+# Ingress: Public API endpoint
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  namespace: flux-prod
+  name: flux-api-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - flux-api.usds.gov
+    secretName: flux-tls-cert
+  rules:
+  - host: flux-api.usds.gov
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: flux-api
+            port:
+              number: 8080
+
+---
+# HPA: Horizontal Pod Autoscaling for API
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  namespace: flux-prod
+  name: flux-api-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: flux-api
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+
+---
+# HPA: Lake worker scaling (scale on queue depth from KEDA)
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  namespace: flux-prod
+  name: flux-lake-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: flux-lake
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 75
+
+---
+# ServiceAccount for API
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  namespace: flux-prod
+  name: flux-api
+
+---
+# ServiceAccount for Lake
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  namespace: flux-prod
+  name: flux-lake
+
+---
+# Role: API pod permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: flux-prod
+  name: flux-api-role
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+
+---
+# RoleBinding: API service account
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: flux-prod
+  name: flux-api-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: flux-api-role
+subjects:
+- kind: ServiceAccount
+  name: flux-api
+  namespace: flux-prod
+
+---
+# NetworkPolicy: Multi-agency data isolation
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  namespace: flux-prod
+  name: flux-agency-isolation
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: flux-prod
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: flux-prod
+  - to:
+    - podSelector: {}
+    ports:
+    - protocol: TCP
+      port: 53  # DNS
+    - protocol: UDP
+      port: 53
+
+---
+# PodDisruptionBudget: Maintain availability during node maintenance
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  namespace: flux-prod
+  name: flux-api-pdb
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: flux-api

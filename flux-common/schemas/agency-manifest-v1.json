@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://flux.usds.gov/schemas/v1/agency-manifest.json",
+  "title": "Agency Manifest Schema v1",
+  "description": "Defines agency configuration and capabilities",
+  "type": "object",
+  "required": ["slug", "name"],
+  "properties": {
+    "slug": {
+      "type": "string",
+      "description": "Unique lowercase identifier",
+      "pattern": "^[a-z0-9-]+$",
+      "examples": ["national-archives", "nasa", "library-of-congress"]
+    },
+    "name": {
+      "type": "string",
+      "description": "Full official agency name",
+      "minLength": 3,
+      "maxLength": 256
+    },
+    "abbreviation": {
+      "type": "string",
+      "description": "Agency abbreviation",
+      "minLength": 2,
+      "maxLength": 10
+    },
+    "supported_content_types": {
+      "type": "array",
+      "description": "Content types this agency can ingest",
+      "items": {
+        "enum": ["images", "documents", "text", "mixed"]
+      },
+      "minItems": 1
+    },
+    "supported_use_cases": {
+      "type": "array",
+      "description": "Primary use cases for agency data",
+      "items": {
+        "enum": [
+          "vr",
+          "ai-training",
+          "research",
+          "education",
+          "preservation",
+          "accessibility",
+          "public-engagement",
+          "policy",
+          "economic-development",
+          "national-security",
+          "environmental",
+          "cultural",
+          "historical",
+          "scientific"
+        ]
+      },
+      "minItems": 1
+    },
+    "data_classification": {
+      "type": "string",
+      "description": "Security classification level (US only, S, TS, etc.)",
+      "enum": ["U", "S", "TS", "SCI"],
+      "default": "U"
+    },
+    "retention_days": {
+      "type": "integer",
+      "description": "How long to retain processed data before deletion (0 = indefinite)",
+      "minimum": 0,
+      "maximum": 36500,
+      "default": 2555
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "additionalProperties": false
+}

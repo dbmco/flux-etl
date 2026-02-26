@@ -2,85 +2,201 @@ workflow:
   name: flux-etl-mcpcli-integration
   description: >
     Integrate Flux ETL with MCPCLI/Resilio orchestration layer to enable
-    resumable, AI-enhanced workflows, plugin routing, and Kubernetes-ready deployment.
+    resumable, AI-enhanced workflows, plugin routing, and Kubernetes-ready
+    deployment. Designed for multi-agency adoption across federal institutions
+    that need to ingest images, documents, and written words as structured data
+    and route that data to AI/ML agents for any downstream use case.
 
   inputs:
     - flux_etl_repo: "https://github.com/dbmco/flux-etl"
     - mcpcli_zip: "mcpcli_project.zip"
     - example_payloads:
-        - '{"hello":"world"}'
-        - '{"message":"etl-task"}'
+        - '{"agency":"national-archives","content_type":"documents","stage":"full","use_case":"preservation"}'
+        - '{"agency":"nasa","content_type":"images","stage":"ingest","use_case":"ai-training"}'
+        - '{"agency":"library-of-congress","content_type":"mixed","stage":"full","use_case":"research"}'
+        - '{"agency":"national-gallery-of-art","content_type":"images","stage":"full","use_case":"vr"}'
+        - '{"agency":"noaa","content_type":"mixed","stage":"full","use_case":"environmental"}'
 
+  # ── Agencies ────────────────────────────────────────────────────────────────
+  # Any agency can adopt this pipeline. The list below represents initial
+  # target agencies; the system is not limited to these.
+  target_agencies:
+    - slug: national-gallery-of-art
+      name: National Gallery of Art
+      content_types: [images, text]
+      primary_use_cases: [vr, public-engagement, cultural]
+
+    - slug: national-archives
+      name: National Archives
+      content_types: [documents, images, text]
+      primary_use_cases: [preservation, historical, research, policy]
+
+    - slug: library-of-congress
+      name: Library of Congress
+      content_types: [documents, images, text]
+      primary_use_cases: [preservation, research, education, accessibility]
+
+    - slug: national-park-service
+      name: National Park Service
+      content_types: [images, documents, text]
+      primary_use_cases: [environmental, public-engagement, education]
+
+    - slug: nasa
+      name: National Aeronautics and Space Administration
+      content_types: [images, documents, text]
+      primary_use_cases: [scientific, ai-training, research, vr]
+
+    - slug: noaa
+      name: National Oceanic and Atmospheric Administration
+      content_types: [images, documents, text]
+      primary_use_cases: [environmental, scientific, research, policy]
+
+    - slug: national-science-foundation
+      name: National Science Foundation
+      content_types: [documents, text]
+      primary_use_cases: [scientific, research, ai-training, education]
+
+    - slug: national-endowment-for-the-arts
+      name: National Endowment for the Arts
+      content_types: [images, text]
+      primary_use_cases: [cultural, public-engagement, accessibility]
+
+    - slug: national-endowment-for-the-humanities
+      name: National Endowment for the Humanities
+      content_types: [documents, text]
+      primary_use_cases: [historical, research, education, cultural]
+
+  # ── Content types ────────────────────────────────────────────────────────────
+  content_types:
+    - images:     photographs, artwork, satellite imagery, maps, scanned records
+    - documents:  PDFs, legal filings, reports, scanned documents
+    - text:       written words, transcripts, metadata, structured JSON
+    - mixed:      combination of images, documents, and text
+
+  # ── Use cases ────────────────────────────────────────────────────────────────
+  use_cases:
+    - vr:                   Build virtual environments from ingested data
+    - ai-training:          Prepare datasets for AI/ML model training
+    - research:             Structured export for academic or policy research
+    - education:            Generate educational materials
+    - preservation:         Long-term archival with checksums and audit trails
+    - accessibility:        Transform data for public accessibility (captions, alt-text)
+    - public-engagement:    Dashboards and public-facing APIs
+    - policy:               Structured summaries for policy decision-making
+    - economic-development: Economic indicators and trend analysis
+    - national-security:    Classification-boundary-aware internal processing
+    - environmental:        Conservation metrics and environmental monitoring
+    - cultural:             Cultural heritage cataloguing and cross-agency linking
+    - historical:           Historical record indexing and timeline construction
+    - scientific:           Scientific dataset preparation and peer-review export
+
+  # ── Objectives ───────────────────────────────────────────────────────────────
   objectives:
-    - durable_workflows
-    - plugin_routing
-    - ai_model_integration
-    - event_logging
-    - kubernetes_ready
-    - cli_openapi
+    - durable_workflows       # checkpoint/resume so no run is ever lost
+    - plugin_routing          # any AI/ML agent selectable via --provider
+    - ai_model_integration    # weighted model routing for A/B and gradual rollout
+    - event_logging           # timestamped audit trail on every run
+    - kubernetes_ready        # stateless containers, PVC checkpoints, scale-from-zero
+    - cli_openapi             # CLI commands + OpenAPI schema for discovery
+    - multi_agency            # single pipeline, any agency, any content type
+    - multi_use_case          # use-case-specific post-processing steps
+    - edge_scalability        # lightweight containers deployable anywhere, scale-from-zero
+    - internal_data_flows     # all data processing is internal; only AI agent calls are external
+    - secure_by_default       # tokens never logged; classification labels applied per use case
 
+  # ── Pipeline tasks ───────────────────────────────────────────────────────────
   tasks:
 
     - id: review_flux_etl
       description: >
         Analyze existing Flux ETL pipelines, connectors, and data structures.
         Identify where tasks can be treated as workflow units.
+        Map content types (images, documents, text) to ingestion steps.
       actions:
         - fetch_repo: flux_etl_repo
         - scan_pipeline_stages
         - document_task_boundaries
+        - map_content_types_to_steps
 
     - id: integrate_orchestration_layer
       description: >
         Treat Flux ETL jobs as plugin-compatible tasks within MCPCLI pipeline.
         Create adapters so workflows can start, resume, and log status.
+        The Go monadic process (master/master.go) is the single orchestration
+        point — it never exposes raw data externally.
       actions:
         - create_task_adapter
         - expose_task_events
         - support_resume_checkpoint
+        - enforce_internal_data_flows
 
     - id: plugin_architecture
       description: >
         Extend provider plugin model to support Flux ETL task execution.
         Maintain multi-provider routing for AI and services.
+        Any AI/ML agent can be selected as a plug-in via --provider flag.
       actions:
         - define_provider_interface
         - implement_flux_provider
         - register_provider
+        - document_plugin_extension_pattern
+
+    - id: multi_agency_support
+      description: >
+        Extend the Flux ETL provider to accept agency slug, content type,
+        and use case in the payload. Route to agency-specific ingestion,
+        transformation, and export steps.
+      actions:
+        - add_agency_field_to_payload
+        - add_content_type_routing
+        - add_use_case_post_processing
+        - validate_agency_and_content_type
 
     - id: event_logging
       description: >
         Capture monadic events across ETL and AI tasks for observability.
+        Events are append-only and never contain raw data or tokens.
       actions:
         - log_events_json
         - include_task_metadata
         - enable_replay
+        - exclude_sensitive_fields
 
     - id: containerization
       description: >
         Dockerize combined system and prepare Kubernetes deployment.
+        Design for scale-from-zero: idle at 0 replicas, spin up on trigger,
+        scale back down on completion. Checkpoint files stored on PVC so
+        pod restarts do not lose progress.
       actions:
         - build_dockerfile
         - create_k8s_manifests
         - define_resource_limits
-        - add_pvc_optional
+        - add_pvc_for_checkpoints
+        - configure_hpa_or_keda_scale_to_zero
 
     - id: cli_openapi
       description: >
         Provide CLI commands and OpenAPI spec for discovery and documentation.
+        Include multi-agency payload examples in the schema.
       actions:
         - implement_openapi
         - document_cli
         - generate_swagger
+        - add_multi_agency_examples
 
     - id: testing_demo
       description: >
-        Validate workflows with sample payloads and event logs.
+        Validate workflows with sample payloads across multiple agencies,
+        content types, and use cases. Verify checkpoint resume and event replay.
       actions:
         - run_example_workflows
         - capture_event_output
         - verify_resume
+        - test_each_content_type
+        - test_each_use_case
 
+  # ── Deliverables ─────────────────────────────────────────────────────────────
   deliverables:
     - integrated_repository
     - docker_support
@@ -88,20 +204,31 @@ workflow:
     - example_workflows
     - documentation
     - event_samples
+    - multi_agency_payload_examples
+    - use_case_step_matrix
 
+  # ── Constraints ──────────────────────────────────────────────────────────────
   constraints:
-    - no_database_required
+    - no_database_required_for_orchestration
     - focus_on_configs
     - low_cost_compute
     - developer_friendly
+    - scale_from_zero
+    - internal_data_flows_only
+    - tokens_never_logged
 
+  # ── Next steps ───────────────────────────────────────────────────────────────
   next_steps:
     - marketplace_api_design
     - oauth_auth
     - edge_deployment
     - billing
+    - cross_agency_data_linking
+    - federated_search_index
 
+  # ── Metadata ─────────────────────────────────────────────────────────────────
   metadata:
     owner: product_engineering
     priority: high
     status: ready
+    version: "2.0"

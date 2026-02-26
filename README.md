@@ -64,7 +64,7 @@ This is conceptual/planning stage work. The `demo/` project serves as a referenc
 
 ## Repository Overview
 
-StafferFi is a dual-purpose repository containing:
+Flux ETL is a dual-purpose repository containing:
 1. **demo/** - Multi-tier polyglot ETL service for eCFR analytics (pnpm monorepo)
 2. **zOS/** - Mainframe integration framework for federal data modernization
 
