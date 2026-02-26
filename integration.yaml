@@ -1,0 +1,107 @@
+workflow:
+  name: flux-etl-mcpcli-integration
+  description: >
+    Integrate Flux ETL with MCPCLI/Resilio orchestration layer to enable
+    resumable, AI-enhanced workflows, plugin routing, and Kubernetes-ready deployment.
+
+  inputs:
+    - flux_etl_repo: "https://github.com/dbmco/flux-etl"
+    - mcpcli_zip: "mcpcli_project.zip"
+    - example_payloads:
+        - '{"hello":"world"}'
+        - '{"message":"etl-task"}'
+
+  objectives:
+    - durable_workflows
+    - plugin_routing
+    - ai_model_integration
+    - event_logging
+    - kubernetes_ready
+    - cli_openapi
+
+  tasks:
+
+    - id: review_flux_etl
+      description: >
+        Analyze existing Flux ETL pipelines, connectors, and data structures.
+        Identify where tasks can be treated as workflow units.
+      actions:
+        - fetch_repo: flux_etl_repo
+        - scan_pipeline_stages
+        - document_task_boundaries
+
+    - id: integrate_orchestration_layer
+      description: >
+        Treat Flux ETL jobs as plugin-compatible tasks within MCPCLI pipeline.
+        Create adapters so workflows can start, resume, and log status.
+      actions:
+        - create_task_adapter
+        - expose_task_events
+        - support_resume_checkpoint
+
+    - id: plugin_architecture
+      description: >
+        Extend provider plugin model to support Flux ETL task execution.
+        Maintain multi-provider routing for AI and services.
+      actions:
+        - define_provider_interface
+        - implement_flux_provider
+        - register_provider
+
+    - id: event_logging
+      description: >
+        Capture monadic events across ETL and AI tasks for observability.
+      actions:
+        - log_events_json
+        - include_task_metadata
+        - enable_replay
+
+    - id: containerization
+      description: >
+        Dockerize combined system and prepare Kubernetes deployment.
+      actions:
+        - build_dockerfile
+        - create_k8s_manifests
+        - define_resource_limits
+        - add_pvc_optional
+
+    - id: cli_openapi
+      description: >
+        Provide CLI commands and OpenAPI spec for discovery and documentation.
+      actions:
+        - implement_openapi
+        - document_cli
+        - generate_swagger
+
+    - id: testing_demo
+      description: >
+        Validate workflows with sample payloads and event logs.
+      actions:
+        - run_example_workflows
+        - capture_event_output
+        - verify_resume
+
+  deliverables:
+    - integrated_repository
+    - docker_support
+    - k8s_manifests
+    - example_workflows
+    - documentation
+    - event_samples
+
+  constraints:
+    - no_database_required
+    - focus_on_configs
+    - low_cost_compute
+    - developer_friendly
+
+  next_steps:
+    - marketplace_api_design
+    - oauth_auth
+    - edge_deployment
+    - billing
+
+  metadata:
+    owner: product_engineering
+    priority: high
+    status: ready
